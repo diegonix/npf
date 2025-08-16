@@ -95,12 +95,33 @@ npfkern_nvlist_copy(const void *a, const void *b, size_t c)
 #define	mutex_destroy(l)	pthread_mutex_destroy(l)
 
 static inline int
+npfkern_pthread_cond_init_monotonic(pthread_cond_t *cond)
+{
+	pthread_condattr_t attr;
+	int ret;
+
+	ret = pthread_condattr_init(&attr);
+	if (ret != 0) return ret;
+
+	ret = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+	if (ret != 0) {
+		pthread_condattr_destroy(&attr);
+		return ret;
+	}
+
+	ret = pthread_cond_init(cond, &attr);
+	pthread_condattr_destroy(&attr);
+	return ret;
+}
+
+static inline int
 npfkern_pthread_cond_timedwait(pthread_cond_t *t, pthread_mutex_t *l,
     const unsigned msec)
 {
 	const unsigned sec = msec / 1000;
 	struct timespec ts;
 
+	/* Use CLOCK_MONOTONIC consistently with condition variable initialization */
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	ts.tv_sec += sec;
 	ts.tv_nsec = (msec - (sec * 1000)) * 1000000;
@@ -108,7 +129,7 @@ npfkern_pthread_cond_timedwait(pthread_cond_t *t, pthread_mutex_t *l,
 }
 
 #define	kcondvar_t		pthread_cond_t
-#define	cv_init(c, w)		pthread_cond_init(c, NULL)
+#define	cv_init(c, w)		npfkern_pthread_cond_init_monotonic(c)
 #define	cv_broadcast(c)		pthread_cond_broadcast(c)
 #define	cv_wait(c, l)		pthread_cond_wait(c, l)
 #define	cv_timedwait(c, l, t)	npfkern_pthread_cond_timedwait(c, l, t)
@@ -155,7 +176,7 @@ again:
 #define	atomic_load_acquire(x)		\
     atomic_load_explicit((x), memory_order_acquire)
 #define	atomic_load_consume(x)		\
-    atomic_load_explicit((x), memory_order_consume)
+    atomic_load_explicit((x), memory_order_acquire)
 #define	atomic_store_release(x, y)	\
     atomic_store_explicit((x), (y), memory_order_release)
 

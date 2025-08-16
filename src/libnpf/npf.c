@@ -1219,6 +1219,7 @@ _npf_table_build_const(nl_table_t *tl)
 		free(buf);
 		goto out;
 	}
+	memcpy(buf, cdb, len);  // FIX: Copy data before unmapping
 	munmap(cdb, len);
 
 	/*

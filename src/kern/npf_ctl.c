@@ -76,6 +76,13 @@ npf_mk_params(npf_t *npf, const nvlist_t *req, nvlist_t *resp, bool set)
 static int __noinline
 npf_mk_table_entries(npf_table_t *t, const nvlist_t *req, nvlist_t *resp)
 {
+	unsigned type = dnvlist_get_number(req, "type", UINT64_MAX);
+
+	if (type == NPF_TABLE_CONST) {
+		// For CONST, entries are invalid; content comes from 'data' CDB blob.
+		return 0; // success, skip processing entries
+	}
+
 	const nvlist_t * const *entries;
 	size_t nitems;
 	int error = 0;
